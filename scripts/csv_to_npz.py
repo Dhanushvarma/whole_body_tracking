@@ -30,6 +30,7 @@ parser.add_argument(
 )
 parser.add_argument("--output_name", type=str, required=True, help="The name of the motion npz file.")
 parser.add_argument("--output_fps", type=int, default=50, help="The fps of the output motion.")
+parser.add_argument("--robot_model", type=str, required=True, help="The name of the robot model")
 
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
@@ -56,10 +57,13 @@ from isaaclab.utils.math import axis_angle_from_quat, quat_conjugate, quat_mul, 
 # Pre-defined configs
 ##
 from whole_body_tracking.robots.g1 import G1_CYLINDER_CFG
+from whole_body_tracking.robots.h1_2 import H1_2_CYLINDER_CFG
+
+from joint_names import h1_2_joint_names, g1_joint_names
 
 
 @configclass
-class ReplayMotionsSceneCfg(InteractiveSceneCfg):
+class ReplayMotionsSceneCfg_G1(InteractiveSceneCfg):
     """Configuration for a replay motions scene."""
 
     # ground plane
@@ -76,6 +80,26 @@ class ReplayMotionsSceneCfg(InteractiveSceneCfg):
 
     # articulation
     robot: ArticulationCfg = G1_CYLINDER_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+
+@configclass
+class ReplayMotionsSceneCfg_H1_2(InteractiveSceneCfg):
+    """Configuration for a replay motions scene."""
+
+    # ground plane
+    ground = AssetBaseCfg(prim_path="/World/defaultGroundPlane", spawn=sim_utils.GroundPlaneCfg())
+
+    # lights
+    sky_light = AssetBaseCfg(
+        prim_path="/World/skyLight",
+        spawn=sim_utils.DomeLightCfg(
+            intensity=750.0,
+            texture_file=f"{ISAAC_NUCLEUS_DIR}/Materials/Textures/Skies/PolyHaven/kloofendal_43d_clear_puresky_4k.hdr",
+        ),
+    )
+
+    # articulation
+    robot: ArticulationCfg = H1_2_CYLINDER_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
 
 class MotionLoader:
@@ -318,7 +342,8 @@ def main():
     sim_cfg.dt = 1.0 / args_cli.output_fps
     sim = SimulationContext(sim_cfg)
     # Design scene
-    scene_cfg = ReplayMotionsSceneCfg(num_envs=1, env_spacing=2.0)
+    _ReplayMotionsSceneCfg = ReplayMotionsSceneCfg_G1 if args_cli.robot_model == "g1" else ReplayMotionsSceneCfg_H1_2
+    scene_cfg = _ReplayMotionsSceneCfg(num_envs=1, env_spacing=2.0)
     scene = InteractiveScene(scene_cfg)
     # Play the simulator
     sim.reset()
@@ -328,37 +353,7 @@ def main():
     run_simulator(
         sim,
         scene,
-        joint_names=[
-            "left_hip_pitch_joint",
-            "left_hip_roll_joint",
-            "left_hip_yaw_joint",
-            "left_knee_joint",
-            "left_ankle_pitch_joint",
-            "left_ankle_roll_joint",
-            "right_hip_pitch_joint",
-            "right_hip_roll_joint",
-            "right_hip_yaw_joint",
-            "right_knee_joint",
-            "right_ankle_pitch_joint",
-            "right_ankle_roll_joint",
-            "waist_yaw_joint",
-            "waist_roll_joint",
-            "waist_pitch_joint",
-            "left_shoulder_pitch_joint",
-            "left_shoulder_roll_joint",
-            "left_shoulder_yaw_joint",
-            "left_elbow_joint",
-            "left_wrist_roll_joint",
-            "left_wrist_pitch_joint",
-            "left_wrist_yaw_joint",
-            "right_shoulder_pitch_joint",
-            "right_shoulder_roll_joint",
-            "right_shoulder_yaw_joint",
-            "right_elbow_joint",
-            "right_wrist_roll_joint",
-            "right_wrist_pitch_joint",
-            "right_wrist_yaw_joint",
-        ],
+        joint_names=g1_joint_names if args_cli.robot_model == "g1" else h1_2_joint_names,
     )
 
 

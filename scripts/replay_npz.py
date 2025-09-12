@@ -17,6 +17,7 @@ from isaaclab.app import AppLauncher
 # add argparse arguments
 parser = argparse.ArgumentParser(description="Replay converted motions.")
 parser.add_argument("--registry_name", type=str, required=True, help="The name of the wand registry.")
+parser.add_argument("--robot_model", type=str, required=True, help="The name of the robot model")
 
 # append AppLauncher cli args
 AppLauncher.add_app_launcher_args(parser)
@@ -40,15 +41,18 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
 # Pre-defined configs
 ##
 from whole_body_tracking.robots.g1 import G1_CYLINDER_CFG
+from whole_body_tracking.robots.h1_2 import H1_2_CYLINDER_CFG
 from whole_body_tracking.tasks.tracking.mdp import MotionLoader
 
 
 @configclass
-class ReplayMotionsSceneCfg(InteractiveSceneCfg):
+class ReplayMotionsSceneCfg_G1(InteractiveSceneCfg):
     """Configuration for a replay motions scene."""
 
+    # ground plane
     ground = AssetBaseCfg(prim_path="/World/defaultGroundPlane", spawn=sim_utils.GroundPlaneCfg())
 
+    # lights
     sky_light = AssetBaseCfg(
         prim_path="/World/skyLight",
         spawn=sim_utils.DomeLightCfg(
@@ -59,6 +63,26 @@ class ReplayMotionsSceneCfg(InteractiveSceneCfg):
 
     # articulation
     robot: ArticulationCfg = G1_CYLINDER_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+
+
+@configclass
+class ReplayMotionsSceneCfg_H1_2(InteractiveSceneCfg):
+    """Configuration for a replay motions scene."""
+
+    # ground plane
+    ground = AssetBaseCfg(prim_path="/World/defaultGroundPlane", spawn=sim_utils.GroundPlaneCfg())
+
+    # lights
+    sky_light = AssetBaseCfg(
+        prim_path="/World/skyLight",
+        spawn=sim_utils.DomeLightCfg(
+            intensity=750.0,
+            texture_file=f"{ISAAC_NUCLEUS_DIR}/Materials/Textures/Skies/PolyHaven/kloofendal_43d_clear_puresky_4k.hdr",
+        ),
+    )
+
+    # articulation
+    robot: ArticulationCfg = H1_2_CYLINDER_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
 
 def run_simulator(sim: sim_utils.SimulationContext, scene: InteractiveScene):
@@ -111,8 +135,8 @@ def main():
     sim_cfg = sim_utils.SimulationCfg(device=args_cli.device)
     sim_cfg.dt = 0.02
     sim = SimulationContext(sim_cfg)
-
-    scene_cfg = ReplayMotionsSceneCfg(num_envs=1, env_spacing=2.0)
+    _ReplayMotionsSceneCfg = ReplayMotionsSceneCfg_G1 if args_cli.robot_model == "g1" else ReplayMotionsSceneCfg_H1_2
+    scene_cfg = _ReplayMotionsSceneCfg(num_envs=1, env_spacing=2.0)
     scene = InteractiveScene(scene_cfg)
     sim.reset()
     # Run the simulator
